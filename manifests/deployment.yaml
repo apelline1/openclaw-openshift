@@ -19,34 +19,42 @@ spec:
     spec:
       serviceAccountName: openclaw
 
-      # ── Security context (meets OpenShift restricted-v2 SCC) ──────────────
+      # ── Security context ───────────────────────────────────────────────────
+      # runAsUser and fsGroup are intentionally omitted — OpenShift assigns
+      # a UID automatically from the namespace's allowed range (restricted-v2).
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
 
       # ── Init container: write config into the data volume ─────────────────
       initContainers:
         - name: init-config
-          image: ghcr.io/YOUR_GITHUB_ORG/openclaw-openshift:latest   # ← updated by CI
+          image: ghcr.io/openclaw/openclaw:slim   # official image; CI replaces with custom build
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
           command:
             - sh
             - -c
             - |
-              mkdir -p /data
+              # OpenClaw reads config from $HOME/.openclaw/openclaw.json
+              # HOME=/data, so config lives at /data/.openclaw/openclaw.json
+              mkdir -p /data/.openclaw
+              # Clear any stale gateway lock files from previous crashed pods
+              rm -f /data/.openclaw/.gateway.lock /data/.openclaw/.state.lock \
+                    /data/.openclaw/gateway.lock 2>/dev/null || true
               # Inject the gateway token from the Secret into openclaw.json
               sed "s|\${OPENCLAW_GATEWAY_TOKEN}|${OPENCLAW_GATEWAY_TOKEN}|g" \
-                /config/openclaw.json > /data/openclaw.json
+                /config/openclaw.json > /data/.openclaw/openclaw.json
               cp /config/AGENTS.md /data/AGENTS.md
-              echo "Init complete"
+              echo "Init complete — config written to /data/.openclaw/openclaw.json"
           env:
+            - name: HOME
+              value: /data
             - name: OPENCLAW_GATEWAY_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -61,22 +69,34 @@ spec:
       # ── Main container: OpenClaw Gateway ──────────────────────────────────
       containers:
         - name: gateway
-          image: ghcr.io/YOUR_GITHUB_ORG/openclaw-openshift:latest   # ← updated by CI
+          image: ghcr.io/openclaw/openclaw:slim   # official image; CI replaces with custom build
+          command: ["openclaw", "gateway", "run", "--bind", "lan", "--allow-unconfigured"]
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
+            runAsNonRoot: true
             capabilities:
               drop: ["ALL"]
           ports:
             - containerPort: 18789
               protocol: TCP
           env:
+            # Point HOME to the PVC so ~/.openclaw/ resolves to /data/.openclaw/
+            # (the dynamic UID has no entry in /etc/passwd, so HOME defaults to /)
+            - name: HOME
+              value: /data
             - name: OPENCLAW_DATA_DIR
               value: /data
             - name: OPENCLAW_BIND
-              value: "0.0.0.0"
+              value: "lan"
             - name: OPENCLAW_PORT
               value: "18789"
+            # Gateway auth token — required for lan/auto binding
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: gateway-token
             # ── OpenAI API key ───────────────────────────────────────────────
             - name: OPENAI_API_KEY
               valueFrom:

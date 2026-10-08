@@ -6,8 +6,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 FROM registry.access.redhat.com/ubi10/nodejs-24:latest
 
-# Run as non-root (UID 1000 = UBI default non-root user)
-USER 1000
+# Do NOT set USER here — OpenShift injects a UID from the namespace's
+# allowed range (e.g. 1002050000) at runtime via the restricted-v2 SCC.
 
 # Data dir — must match the PVC mountPath in the Deployment manifest
 ENV OPENCLAW_DATA_DIR=/data
@@ -23,4 +23,6 @@ EXPOSE 18789
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
   CMD curl -sf http://localhost:18789/api/health || exit 1
 
-CMD ["openclaw", "gateway", "start", "--bind", "0.0.0.0", "--foreground"]
+# "run" starts the gateway in the foreground (correct for containers).
+# "--bind lan" exposes it on all interfaces so the K8s Service can reach it.
+CMD ["openclaw", "gateway", "run", "--bind", "lan"]
