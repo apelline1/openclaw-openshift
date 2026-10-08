@@ -49,7 +49,8 @@ oc login --server=https://api.your-cluster.example.com:6443
 ### 2 — Create the namespace
 
 ```bash
-oc new-project openclaw
+# namespace already exists — skip this step
+# oc new-project openclaw
 ```
 
 ### 3 — Create the Secret (API keys)
@@ -61,7 +62,7 @@ GATEWAY_TOKEN=$(openssl rand -hex 32)
 oc create secret generic openclaw-secrets \
   --from-literal=gateway-token="${GATEWAY_TOKEN}" \
   --from-literal=openai-api-key="sk-..."          \   # ← paste your OpenAI key
-  -n openclaw
+  -n apelline-dev
 ```
 
 ### 4 — Apply all manifests
@@ -81,17 +82,17 @@ This creates in one command:
 ### 5 — Wait for the pod to be ready
 
 ```bash
-oc rollout status deployment/openclaw -n openclaw --timeout=180s
+oc rollout status deployment/openclaw -n apelline-dev --timeout=180s
 ```
 
 ### 6 — Open the chatbot dashboard
 
 ```bash
 # Get the public URL
-oc get route openclaw -n openclaw -o jsonpath='https://{.spec.host}{"\n"}'
+oc get route openclaw -n apelline-dev -o jsonpath='https://{.spec.host}{"\n"}'
 
 # Or open it directly (macOS)
-open "https://$(oc get route openclaw -n openclaw -o jsonpath='{.spec.host}')"
+open "https://$(oc get route openclaw -n apelline-dev -o jsonpath='{.spec.host}')"
 ```
 
 ### Updating after a config change
@@ -99,8 +100,8 @@ open "https://$(oc get route openclaw -n openclaw -o jsonpath='{.spec.host}')"
 ```bash
 # Edit manifests/configmap.yaml or manifests/deployment.yaml, then:
 oc apply -k manifests/ --server-side
-oc rollout restart deployment/openclaw -n openclaw
-oc rollout status deployment/openclaw -n openclaw
+oc rollout restart deployment/openclaw -n apelline-dev
+oc rollout status deployment/openclaw -n apelline-dev
 ```
 
 ### Tearing down
@@ -123,17 +124,17 @@ GATEWAY_TOKEN=$(openssl rand -hex 32)
 oc create secret generic openclaw-secrets \
   --from-literal=gateway-token="${GATEWAY_TOKEN}" \
   --from-literal=openai-api-key="sk-..."          \
-  -n openclaw
+  -n apelline-dev
 ```
 
 ### 2 — Create a deploy service account and token
 
 ```bash
-oc create sa github-deployer -n openclaw
-oc adm policy add-role-to-user edit -z github-deployer -n openclaw
+oc create sa github-deployer -n apelline-dev
+oc adm policy add-role-to-user edit -z github-deployer -n apelline-dev
 
 # Copy the output of this command — you'll need it in the next step
-oc create token github-deployer -n openclaw --duration=8760h
+oc create token github-deployer -n apelline-dev --duration=8760h
 ```
 
 ### 3 — Add GitHub Secrets
@@ -159,31 +160,31 @@ Watch the pipeline in the **Actions** tab. When it finishes, the bot is live.
 
 ```bash
 # View live pod logs
-oc logs -f deployment/openclaw -n openclaw
+oc logs -f deployment/openclaw -n apelline-dev
 
 # Open a shell inside the running pod
-oc rsh deployment/openclaw -n openclaw
+oc rsh deployment/openclaw -n apelline-dev
 
 # Check pod status
-oc get pods -n openclaw
+oc get pods -n apelline-dev
 
 # Restart the gateway (e.g. after a config change)
-oc rollout restart deployment/openclaw -n openclaw
+oc rollout restart deployment/openclaw -n apelline-dev
 
 # Scale down (pause the bot)
-oc scale deployment/openclaw --replicas=0 -n openclaw
+oc scale deployment/openclaw --replicas=0 -n apelline-dev
 
 # Scale back up
-oc scale deployment/openclaw --replicas=1 -n openclaw
+oc scale deployment/openclaw --replicas=1 -n apelline-dev
 
 # Get the public URL
-oc get route openclaw -n openclaw -o jsonpath='https://{.spec.host}{"\n"}'
+oc get route openclaw -n apelline-dev -o jsonpath='https://{.spec.host}{"\n"}'
 
 # Update a secret value (e.g. rotate OpenAI key)
-oc patch secret openclaw-secrets -n openclaw \
+oc patch secret openclaw-secrets -n apelline-dev \
   --type=merge \
   -p '{"stringData":{"openai-api-key":"sk-NEW-KEY-HERE"}}'
-oc rollout restart deployment/openclaw -n openclaw
+oc rollout restart deployment/openclaw -n apelline-dev
 ```
 
 ---

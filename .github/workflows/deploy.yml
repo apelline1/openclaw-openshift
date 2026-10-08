@@ -8,7 +8,7 @@ on:
 env:
   IMAGE_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}   # e.g. apelline/openclaw-openshift
-  OPENSHIFT_NAMESPACE: openclaw
+  OPENSHIFT_NAMESPACE: apelline-dev
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
   name: openclaw
-  namespace: openclaw
+  namespace: apelline-dev
   labels:
     app.kubernetes.io/name: openclaw
 spec:
