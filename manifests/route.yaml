@@ -1,0 +1,20 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app.kubernetes.io/name: openclaw
+spec:
+  # OpenShift will auto-assign a hostname based on your cluster wildcard DNS.
+  # To use a custom domain, set: host: openclaw.your-domain.com
+  to:
+    kind: Service
+    name: openclaw
+    weight: 100
+  port:
+    targetPort: 18789
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None

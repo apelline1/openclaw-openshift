@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openclaw-config
+  namespace: openclaw
+  labels:
+    app.kubernetes.io/name: openclaw
+data:
+  # ── openclaw.json ────────────────────────────────────────────────────────────
+  # Full config reference: https://docs.openclaw.ai/configuration
+  openclaw.json: |
+    {
+      "gateway": {
+        "bind": "0.0.0.0",
+        "port": 18789,
+        "auth": {
+          "token": "${OPENCLAW_GATEWAY_TOKEN}"
+        }
+      },
+      "models": {
+        "default": "openai/gpt-4o",
+        "providers": {
+          "openai": {
+            "apiKey": "${OPENAI_API_KEY}"
+          }
+        }
+      },
+      "update": {
+        "checkOnStart": false
+      },
+      "telemetry": {
+        "enabled": false
+      }
+    }
+
+  # ── AGENTS.md ────────────────────────────────────────────────────────────────
+  # System prompt / persona for the default agent.
+  # Customise freely — this is just a starter.
+  AGENTS.md: |
+    # OpenClaw Assistant
+
+    You are a helpful, concise assistant deployed on OpenShift.
+    Answer questions clearly and admit when you don't know something.
+    Keep responses brief unless the user explicitly asks for detail.

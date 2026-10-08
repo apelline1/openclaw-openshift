@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openclaw
+  namespace: openclaw
+  labels:
+    app.kubernetes.io/name: openclaw
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: openclaw
+  strategy:
+    type: Recreate        # PVC is ReadWriteOnce — only one pod at a time
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: openclaw
+    spec:
+      serviceAccountName: openclaw
+
+      # ── Security context (meets OpenShift restricted-v2 SCC) ──────────────
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      # ── Init container: write config into the data volume ─────────────────
+      initContainers:
+        - name: init-config
+          image: ghcr.io/YOUR_GITHUB_ORG/openclaw-openshift:latest   # ← updated by CI
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          command:
+            - sh
+            - -c
+            - |
+              mkdir -p /data
+              # Inject the gateway token from the Secret into openclaw.json
+              sed "s|\${OPENCLAW_GATEWAY_TOKEN}|${OPENCLAW_GATEWAY_TOKEN}|g" \
+                /config/openclaw.json > /data/openclaw.json
+              cp /config/AGENTS.md /data/AGENTS.md
+              echo "Init complete"
+          env:
+            - name: OPENCLAW_GATEWAY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: gateway-token
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: config
+              mountPath: /config
+
+      # ── Main container: OpenClaw Gateway ──────────────────────────────────
+      containers:
+        - name: gateway
+          image: ghcr.io/YOUR_GITHUB_ORG/openclaw-openshift:latest   # ← updated by CI
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 18789
+              protocol: TCP
+          env:
+            - name: OPENCLAW_DATA_DIR
+              value: /data
+            - name: OPENCLAW_BIND
+              value: "0.0.0.0"
+            - name: OPENCLAW_PORT
+              value: "18789"
+            # ── OpenAI API key ───────────────────────────────────────────────
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openclaw-secrets
+                  key: openai-api-key
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 18789
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 18789
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: openclaw-data
+        - name: config
+          configMap:
+            name: openclaw-config
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,11 @@
+# Never commit real secrets
+manifests/secret.yaml
+.env
+*.env
+
+# Node
+node_modules/
+npm-debug.log*
+
+# macOS
+.DS_Store
