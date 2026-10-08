@@ -21,7 +21,7 @@ RUN npm install -g openclaw@latest --no-fund --no-audit
 EXPOSE 18789
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -sf http://localhost:18789/api/health || exit 1
+  CMD curl -sf http://localhost:18789/healthz || exit 1
 
 # "run" starts the gateway in the foreground (correct for containers).
 # "--bind lan" exposes it on all interfaces so the K8s Service can reach it.
