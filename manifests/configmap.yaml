@@ -16,7 +16,8 @@ data:
         "port": 18789,
         "auth": {
           "token": "${OPENCLAW_GATEWAY_TOKEN}"
-        }
+        },
+        "trustedProxies": ["10.128.0.0/14"]
       },
       "update": {
         "checkOnStart": false
